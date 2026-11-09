@@ -1,0 +1,61 @@
+name: Build probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to build
+        default: libandroid-support
+      arch:
+        description: Architecture
+        default: aarch64
+        type: choice
+        options: [aarch64, arm, x86_64, i686]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Prepare termux-packages with overlay
+        run: bash scripts/prepare.sh
+
+      - name: Build builder image (properties.sh is baked into it)
+        working-directory: termux-packages/scripts
+        run: docker build -t asm-package-builder .
+
+      - name: Build package
+        working-directory: termux-packages
+        env:
+          TERMUX_BUILDER_IMAGE_NAME: asm-package-builder
+          CI: "true"
+        run: ./scripts/run-docker.sh ./build-package.sh -a "${{ inputs.arch }}" "${{ inputs.package }}"
+
+      - name: Verify prefix in produced packages
+        working-directory: termux-packages
+        run: |
+          ls -la output/
+          for deb in output/*.deb; do
+            echo "== $deb"
+            dpkg-deb -c "$deb" | head -n 20
+            if dpkg-deb -c "$deb" | grep -q 'com\.termux'; then
+              echo "error: $deb still references com.termux" >&2
+              exit 1
+            fi
+            dpkg-deb -c "$deb" | grep -q 'data/data/org\.codirex\.asm/files/usr' || { echo "error: $deb has no asm prefix" >&2; exit 1; }
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe-${{ inputs.arch }}-${{ inputs.package }}
+          path: termux-packages/output/*.deb
