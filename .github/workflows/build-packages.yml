@@ -1,0 +1,75 @@
+name: Build packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: Architecture (or all)
+        default: aarch64
+        type: choice
+        options: [aarch64, arm, x86_64, i686, all]
+      list:
+        description: Package list file
+        default: packages/bootstrap.txt
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      archs: ${{ steps.p.outputs.archs }}
+    steps:
+      - id: p
+        run: |
+          if [ "${{ inputs.arch }}" = all ]; then
+            echo 'archs=["aarch64","arm","x86_64","i686"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'archs=["${{ inputs.arch }}"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(needs.plan.outputs.archs) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Prepare termux-packages with overlay
+        run: bash scripts/prepare.sh
+
+      - name: Build builder image
+        working-directory: termux-packages/scripts
+        run: docker build -t asm-package-builder .
+
+      - name: Build packages
+        working-directory: termux-packages
+        env:
+          TERMUX_BUILDER_IMAGE_NAME: asm-package-builder
+          CI: "true"
+        run: |
+          PKGS=$(grep -vE '^\s*(#|$)' "../${{ inputs.list }}" | tr '\n' ' ')
+          echo "Building: $PKGS"
+          ./scripts/run-docker.sh ./build-package.sh -a "${{ matrix.arch }}" $PKGS
+
+      - name: List output
+        if: always()
+        run: ls -la termux-packages/output/ || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: debs-${{ matrix.arch }}
+          path: termux-packages/output/*.deb
+          retention-days: 7
+          if-no-files-found: warn

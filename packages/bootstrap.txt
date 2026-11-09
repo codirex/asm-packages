@@ -1,0 +1,34 @@
+# Packages that go into the bootstrap archive (mirrors upstream generate-bootstraps.sh at the pinned ref).
+# Dependencies are built automatically by build-package.sh.
+apt
+bash
+bzip2
+command-not-found
+coreutils
+curl
+dash
+diffutils
+findutils
+gawk
+grep
+gzip
+less
+procps
+psmisc
+sed
+tar
+termux-core
+termux-exec
+termux-keyring
+termux-tools
+util-linux
+xz-utils
+ed
+debianutils
+dos2unix
+inetutils
+lsof
+nano
+net-tools
+patch
+unzip
