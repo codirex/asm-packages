@@ -66,10 +66,18 @@ jobs:
         if: always()
         run: ls -la termux-packages/output/ || true
 
+      # Some package versions have an epoch (for example 1:2026.11.05), so the file name has a colon,
+      # which artifacts refuse. A tar archive keeps the names intact.
+      - name: Archive packages
+        if: always()
+        run: |
+          cd termux-packages/output && tar -cf "$GITHUB_WORKSPACE/debs-${{ matrix.arch }}.tar" ./*.deb || true
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: debs-${{ matrix.arch }}
-          path: termux-packages/output/*.deb
+          path: debs-${{ matrix.arch }}.tar
+          compression-level: 0
           retention-days: 7
           if-no-files-found: warn
