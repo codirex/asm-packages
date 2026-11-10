@@ -1,8 +1,10 @@
 # Packages that go into the bootstrap archive (mirrors upstream generate-bootstraps.sh at the pinned ref).
 # Dependencies are built automatically by build-package.sh.
+# Names here are package FOLDERS of termux-packages, not deb names: bzip2 is a subpackage of
+# libbz2, so the folder to build is libbz2 (it also produces the deb named bzip2).
 apt
 bash
-bzip2
+libbz2
 command-not-found
 coreutils
 curl
