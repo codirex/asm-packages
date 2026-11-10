@@ -48,9 +48,19 @@ jobs:
       - name: Prepare termux-packages with overlay
         run: bash scripts/prepare.sh
 
+      # The image build downloads from Ubuntu mirrors, which are sometimes out of sync for a few
+      # minutes (a 404 for a package that was just replaced). Trying again fixes that.
       - name: Build builder image
         working-directory: termux-packages/scripts
-        run: docker build -t asm-package-builder .
+        run: |
+          for attempt in 1 2 3; do
+            if docker build -t asm-package-builder .; then
+              exit 0
+            fi
+            echo "Image build failed (attempt $attempt of 3)"
+            sleep 30
+          done
+          exit 1
 
       - name: Build packages
         working-directory: termux-packages
