@@ -1,13 +1,13 @@
 # Packages that go into the bootstrap archive (mirrors upstream generate-bootstraps.sh at the pinned ref).
 # Dependencies are built automatically by build-package.sh.
-# Names here are package FOLDERS of termux-packages, not deb names: bzip2 is a subpackage of
-# libbz2, so the folder to build is libbz2 (it also produces the deb named bzip2).
+# Names here are package FOLDERS of termux-packages, not deb names. Subpackages are built by their
+# parent folder: bzip2 comes from libbz2, curl from libcurl, xz-utils from liblzma.
 apt
 bash
 libbz2
 command-not-found
 coreutils
-curl
+libcurl
 dash
 diffutils
 findutils
@@ -24,7 +24,7 @@ termux-exec
 termux-keyring
 termux-tools
 util-linux
-xz-utils
+liblzma
 ed
 debianutils
 dos2unix
