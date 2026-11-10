@@ -44,3 +44,28 @@ skip_checksum() {
 
 # apt 2.8.4 comes from a salsa.debian.org archive whose bytes changed twice.
 skip_checksum apt
+
+# --- 3. ncurses without the foot terminfo ----------------------------------------------------------
+# ncurses downloads the foot terminal's source from codeberg.org only to install foot's terminfo
+# entry. From GitHub runners that download times out. Foot is not needed in the IDE's terminal, so
+# its source and its two install steps are removed. The result must not mention foot any more, so a
+# change in the upstream script fails here instead of in the middle of a one-hour build.
+
+NCURSES="$TARGET/packages/ncurses/build.sh"
+[ -f "$NCURSES" ] || { echo "error: $NCURSES is missing" >&2; exit 1; }
+
+if grep -q 'foot' "$NCURSES"; then
+	perl -0pi -e '
+		s/\n[ \t]*"\$\(\. "\$TERMUX_SCRIPTDIR\/x11-packages\/foot\/build\.sh"; echo "\$TERMUX_PKG_\w+"\)"\)/)/g;
+		s/\n[ \t]*# Upstream instructions for building foot.*?tic -x -e foot,foot-direct -o "\$TI" -//s;
+		s/\n[^\n]*full-terminfo\/f\/foot[^\n]*//;
+	' "$NCURSES"
+	if grep -n 'foot' "$NCURSES"; then
+		echo "error: ncurses still mentions foot; the upstream script changed, review this fix" >&2
+		exit 1
+	fi
+	bash -n "$NCURSES" || { echo "error: ncurses build script no longer parses" >&2; exit 1; }
+	echo "ncurses: foot terminfo removed"
+else
+	echo "ncurses: no foot terminfo (already removed)"
+fi
