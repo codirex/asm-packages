@@ -1,7 +1,8 @@
 name: Make bootstrap
 
-# Turns the .deb files of a finished "Build packages" run into an apt repository (unsigned for
-# now) and a bootstrap archive for one architecture. Signing and publishing come later.
+# Turns the .deb files of a finished "Build packages" run into an apt repository (unsigned, only
+# used here) and a bootstrap archive for one architecture. With a release tag the archive is also
+# attached to that release. The signed repository the app uses comes from "Publish repository".
 on:
   workflow_dispatch:
     inputs:
@@ -13,9 +14,12 @@ on:
         default: aarch64
         type: choice
         options: [aarch64, arm, x86_64, i686]
+      release_tag:
+        description: Release tag to attach the archive to (empty to only keep the artifact)
+        default: ""
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -65,3 +69,18 @@ jobs:
           path: termux-packages/bootstrap-${{ inputs.arch }}.zip
           compression-level: 0
           retention-days: 14
+
+      - name: Attach to the release
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+          ARCH: ${{ inputs.arch }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease \
+              --title "Bootstrap $TAG" \
+              --notes "Bootstrap archives for the terminal of Android Studio Mobile (prefix /data/data/org.codirex.asm/files/usr)."
+          fi
+          gh release upload "$TAG" "termux-packages/bootstrap-$ARCH.zip" \
+            --repo "$GITHUB_REPOSITORY" --clobber
