@@ -69,3 +69,43 @@ if grep -q 'foot' "$NCURSES"; then
 else
 	echo "ncurses: no foot terminfo (already removed)"
 fi
+
+# --- 4. Our own signing key and our own repository -------------------------------------------------
+# termux-keyring ships the keys apt trusts. Ours replaces all of Termux's, so apt trusts only
+# packages signed by the key of this repository. apt's default sources.list points at our
+# repository instead of packages.termux.dev. The public key is overlay/asm-packages.asc; the private
+# key exists only as a GitHub secret (ADR-0007).
+
+REPO_URL="https://codirex.github.io/asm-packages/"
+OVERLAY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+KEYRING_DIR="$TARGET/packages/termux-keyring"
+KEYRING="$KEYRING_DIR/build.sh"
+[ -f "$KEYRING" ] || { echo "error: $KEYRING is missing" >&2; exit 1; }
+[ -f "$OVERLAY_DIR/asm-packages.asc" ] || { echo "error: overlay/asm-packages.asc is missing" >&2; exit 1; }
+
+gpg --dearmor < "$OVERLAY_DIR/asm-packages.asc" > "$KEYRING_DIR/asm-packages.gpg"
+[ -s "$KEYRING_DIR/asm-packages.gpg" ] || { echo "error: the public key could not be converted" >&2; exit 1; }
+
+# Remove every upstream key from the install step, then install ours right after the directory is
+# created.
+sed -i -E '/^[[:space:]]*install -Dm600 "\$TERMUX_PKG_BUILDER_DIR\/[A-Za-z0-9._-]+\.gpg" "\$GPG_SHARE_DIR"$/d' "$KEYRING"
+sed -i -E 's|^([[:space:]]*)mkdir -p "\$GPG_SHARE_DIR"$|&\n\1install -Dm600 "$TERMUX_PKG_BUILDER_DIR/asm-packages.gpg" "$GPG_SHARE_DIR"|' "$KEYRING"
+if [ "$(grep -c 'install -Dm600' "$KEYRING")" != 1 ] || ! grep -q 'asm-packages.gpg' "$KEYRING"; then
+	echo "error: termux-keyring still installs other keys; the upstream script changed, review this fix" >&2
+	exit 1
+fi
+bash -n "$KEYRING" || { echo "error: termux-keyring build script no longer parses" >&2; exit 1; }
+echo "termux-keyring: only the key of this repository"
+
+APT="$TARGET/packages/apt/build.sh"
+[ -f "$APT" ] || { echo "error: $APT is missing" >&2; exit 1; }
+perl -0pi -e '
+	s/\t\{\n\t\techo "# The main termux repository, with cloudflare cache".*?\} > \$TERMUX_PREFIX\/etc\/apt\/sources\.list/\techo "deb '"${REPO_URL//\//\\/}"' stable main" > \$TERMUX_PREFIX\/etc\/apt\/sources.list/s;
+' "$APT"
+if ! grep -q "deb ${REPO_URL} stable main" "$APT" || grep -q 'packages-cf.termux.dev' "$APT"; then
+	echo "error: apt still points at the Termux repository; the upstream script changed, review this fix" >&2
+	exit 1
+fi
+bash -n "$APT" || { echo "error: apt build script no longer parses" >&2; exit 1; }
+echo "apt: sources.list points at ${REPO_URL}"

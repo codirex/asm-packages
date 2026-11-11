@@ -1,0 +1,117 @@
+name: Publish repository
+
+# Builds the signed apt repository from the debs of finished "Build packages" runs and publishes it
+# on GitHub Pages (https://codirex.github.io/asm-packages/). Every publish replaces the whole site,
+# so give the run of every architecture the repository should offer. The private key is the secret
+# APT_GPG_PRIVATE_KEY; it never leaves this job.
+on:
+  workflow_dispatch:
+    inputs:
+      run_aarch64:
+        description: Build packages run id for aarch64 (empty to leave it out)
+        default: ""
+      run_arm:
+        description: Build packages run id for arm
+        default: ""
+      run_x86_64:
+        description: Build packages run id for x86_64
+        default: ""
+      run_i686:
+        description: Build packages run id for i686
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev apt-utils gnupg
+
+      - name: Download the packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_AARCH64: ${{ inputs.run_aarch64 }}
+          RUN_ARM: ${{ inputs.run_arm }}
+          RUN_X86_64: ${{ inputs.run_x86_64 }}
+          RUN_I686: ${{ inputs.run_i686 }}
+        run: |
+          mkdir -p site/pool/main
+          archs=""
+          for pair in "aarch64:$RUN_AARCH64" "arm:$RUN_ARM" "x86_64:$RUN_X86_64" "i686:$RUN_I686"; do
+            arch="${pair%%:*}"; run="${pair#*:}"
+            [ -n "$run" ] || continue
+            gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "debs-$arch" --dir "debs-$arch"
+            tar -xf "debs-$arch/debs-$arch.tar" -C site/pool/main
+            archs="$archs $arch"
+          done
+          [ -n "$archs" ] || { echo "no run id given" >&2; exit 1; }
+          # A version with an epoch (1:2026.11.05) has a colon in the file name. Like the Debian
+          # pool, the file is stored without the epoch; the index says where it is.
+          for f in site/pool/main/*:*; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f%%_*}_${f#*:}"
+          done
+          echo "ARCHS=${archs# }" >> "$GITHUB_ENV"
+          ls site/pool/main | wc -l
+
+      - name: Generate the indexes
+        run: |
+          cd site
+          for arch in $ARCHS; do
+            dir="dists/stable/main/binary-$arch"
+            mkdir -p "$dir"
+            dpkg-scanpackages --multiversion --arch "$arch" pool/main /dev/null > "$dir/Packages"
+            gzip -k -9 "$dir/Packages"
+            echo "$arch: $(grep -c '^Package:' "$dir/Packages") packages"
+          done
+          apt-ftparchive \
+            -o APT::FTPArchive::Release::Origin="Android Studio Mobile" \
+            -o APT::FTPArchive::Release::Label="Android Studio Mobile" \
+            -o APT::FTPArchive::Release::Suite=stable \
+            -o APT::FTPArchive::Release::Codename=stable \
+            -o APT::FTPArchive::Release::Architectures="$ARCHS" \
+            -o APT::FTPArchive::Release::Components=main \
+            release dists/stable > dists/stable/Release
+
+      - name: Sign
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: |
+          [ -n "$APT_GPG_PRIVATE_KEY" ] || { echo "the secret APT_GPG_PRIVATE_KEY is not set" >&2; exit 1; }
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -m 700 "$GNUPGHOME"
+          echo "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          key="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')"
+          expected="$(gpg --show-keys --with-colons overlay/asm-packages.asc | awk -F: '/^fpr/ {print $10; exit}')"
+          [ "$key" = "$expected" ] || { echo "the secret key is not the key of overlay/asm-packages.asc" >&2; exit 1; }
+          cd site/dists/stable
+          gpg --batch --yes --default-key "$key" --armor --detach-sign -o Release.gpg Release
+          gpg --batch --yes --default-key "$key" --clearsign -o InRelease Release
+          cp "$GITHUB_WORKSPACE/overlay/asm-packages.asc" "$GITHUB_WORKSPACE/site/asm-packages.asc"
+          gpg --batch --verify InRelease
+          rm -rf "$GNUPGHOME"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
