@@ -1,0 +1,67 @@
+name: Make bootstrap
+
+# Turns the .deb files of a finished "Build packages" run into an apt repository (unsigned for
+# now) and a bootstrap archive for one architecture. Signing and publishing come later.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Id of the finished "Build packages" run (the number in its URL)
+        required: true
+      arch:
+        description: Architecture
+        default: aarch64
+        type: choice
+        options: [aarch64, arm, x86_64, i686]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev zip jq
+
+      - name: Prepare termux-packages with overlay
+        run: bash scripts/prepare.sh
+
+      - name: Download the packages of the build run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "${{ inputs.run_id }}" --repo "$GITHUB_REPOSITORY" \
+            --name "debs-${{ inputs.arch }}" --dir debs
+          mkdir -p repo/pool/main
+          tar -xf "debs/debs-${{ inputs.arch }}.tar" -C repo/pool/main
+          ls -la repo/pool/main | head -100
+
+      - name: Generate the apt repository
+        run: |
+          arch="${{ inputs.arch }}"
+          cd repo
+          mkdir -p "dists/stable/main/binary-$arch"
+          dpkg-scanpackages --multiversion pool/main /dev/null > "dists/stable/main/binary-$arch/Packages"
+          gzip -k -9 "dists/stable/main/binary-$arch/Packages"
+          grep -c '^Package:' "dists/stable/main/binary-$arch/Packages"
+          grep -E '^(Package|Filename):' "dists/stable/main/binary-$arch/Packages" | head -20
+
+      - name: Generate the bootstrap archive
+        working-directory: termux-packages
+        run: |
+          ./scripts/generate-bootstraps.sh --architectures "${{ inputs.arch }}" \
+            --repository "file://$GITHUB_WORKSPACE/repo"
+          ls -la bootstrap-*.zip
+          unzip -l "bootstrap-${{ inputs.arch }}.zip" | tail -5
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-${{ inputs.arch }}
+          path: termux-packages/bootstrap-${{ inputs.arch }}.zip
+          compression-level: 0
+          retention-days: 14
