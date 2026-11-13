@@ -62,6 +62,8 @@ jobs:
           done
           exit 1
 
+      # A source download from a slow host (git.kernel.org, for example) sometimes times out. Trying
+      # again fixes that, and the packages that were built stay in the output folder.
       - name: Build packages
         working-directory: termux-packages
         env:
@@ -70,7 +72,14 @@ jobs:
         run: |
           PKGS=$(grep -vE '^\s*(#|$)' "../${{ inputs.list }}" | tr '\n' ' ')
           echo "Building: $PKGS"
-          ./scripts/run-docker.sh ./build-package.sh -a "${{ matrix.arch }}" $PKGS
+          for attempt in 1 2 3; do
+            if ./scripts/run-docker.sh ./build-package.sh -a "${{ matrix.arch }}" $PKGS; then
+              exit 0
+            fi
+            echo "Package build failed (attempt $attempt of 3)"
+            sleep 60
+          done
+          exit 1
 
       - name: List output
         if: always()
