@@ -1,0 +1,10 @@
+# Packages that are in the apt repository but not in the bootstrap archive: the person installs them
+# with `pkg install` when needed. Build them with "Build packages" (list: packages/extras.txt), in a run
+# of their own, and give that run id to "Publish repository" next to the bootstrap run of the same
+# architecture. Names are package FOLDERS of termux-packages; dependencies are built automatically.
+#
+# openjdk-17 also builds openjdk-17-x. Its recommended ca-certificates-java comes from the
+# ca-certificates folder, which the bootstrap build already covers.
+openjdk-17
+openssh
+resolv-conf

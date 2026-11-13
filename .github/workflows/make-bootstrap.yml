@@ -14,6 +14,9 @@ on:
         default: aarch64
         type: choice
         options: [aarch64, arm, x86_64, i686]
+      add:
+        description: Packages added to the bootstrap besides the upstream set (comma separated, from packages/bootstrap.txt)
+        default: git,gh
       release_tag:
         description: Release tag to attach the archive to (empty to only keep the artifact)
         default: ""
@@ -58,8 +61,12 @@ jobs:
       - name: Generate the bootstrap archive
         working-directory: termux-packages
         run: |
+          add=()
+          if [ -n "${{ inputs.add }}" ]; then
+            add=(--add "${{ inputs.add }}")
+          fi
           ./scripts/generate-bootstraps.sh --architectures "${{ inputs.arch }}" \
-            --repository "file://$GITHUB_WORKSPACE/repo"
+            --repository "file://$GITHUB_WORKSPACE/repo" "${add[@]}"
           ls -la bootstrap-*.zip
           unzip -l "bootstrap-${{ inputs.arch }}.zip" | tail -5
 

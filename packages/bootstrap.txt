@@ -1,4 +1,5 @@
-# Packages that go into the bootstrap archive (mirrors upstream generate-bootstraps.sh at the pinned ref).
+# Packages that go into the bootstrap archive (mirrors upstream generate-bootstraps.sh at the pinned ref,
+# plus git and gh, which the IDE's terminal needs from the first start: see "add" in make-bootstrap.yml).
 # Dependencies are built automatically by build-package.sh.
 # Names here are package FOLDERS of termux-packages, not deb names. Subpackages are built by their
 # parent folder: bzip2 comes from libbz2, curl from libcurl, xz-utils from liblzma.
@@ -34,3 +35,5 @@ nano
 net-tools
 patch
 unzip
+git
+gh

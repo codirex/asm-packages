@@ -17,6 +17,14 @@ See ADR-0006 and ADR-0007 in the android-studio-mobile repository.
 - `scripts/prepare.sh` - clones upstream at the pin and applies the overlay.
 - `.github/workflows/build-probe.yml` - builds one package for one architecture to validate the custom prefix.
 
+## Packages
+
+- `packages/bootstrap.txt` - built for every release; the bootstrap archive is made from them. It is the upstream
+  bootstrap set plus `git` and `gh`.
+- `packages/extras.txt` - `openjdk-17`, `openssh`, `resolv-conf`: only in the apt repository (`pkg install openjdk-17`).
+  Build them in their own "Build packages" run (list `packages/extras.txt`), because the JDK takes hours.
+  "Publish repository" takes several run ids per architecture, separated by commas.
+
 ## Status
 
 Step 1: probe build (one small package, aarch64). Next: package set, apt repository, bootstrap archives.
