@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       run_aarch64:
-        description: Build packages run id for aarch64 (empty to leave it out)
+        description: Build packages run id(s) for aarch64, comma separated, for example the bootstrap run and the extras run (empty to leave it out)
         default: ""
       run_arm:
         description: Build packages run id for arm
@@ -56,8 +56,10 @@ jobs:
           for pair in "aarch64:$RUN_AARCH64" "arm:$RUN_ARM" "x86_64:$RUN_X86_64" "i686:$RUN_I686"; do
             arch="${pair%%:*}"; run="${pair#*:}"
             [ -n "$run" ] || continue
-            gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "debs-$arch" --dir "debs-$arch"
-            tar -xf "debs-$arch/debs-$arch.tar" -C site/pool/main
+            for id in ${run//,/ }; do
+              gh run download "$id" --repo "$GITHUB_REPOSITORY" --name "debs-$arch" --dir "debs-$arch-$id"
+              tar -xf "debs-$arch-$id/debs-$arch.tar" -C site/pool/main
+            done
             archs="$archs $arch"
           done
           [ -n "$archs" ] || { echo "no run id given" >&2; exit 1; }
