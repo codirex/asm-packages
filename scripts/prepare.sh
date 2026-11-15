@@ -14,3 +14,4 @@ git -C "$DEST" fetch --depth 1 origin "$REF"
 git -C "$DEST" checkout -q --force FETCH_HEAD
 
 bash "$ROOT/overlay/apply.sh" "$DEST"
+bash "$ROOT/overlay/mirrors.sh" "$DEST"
