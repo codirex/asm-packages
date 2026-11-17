@@ -8,3 +8,5 @@
 openjdk-17
 openssh
 resolv-conf
+# The official Gradle distribution (a zip, nothing is compiled); it needs the JDK above.
+gradle
