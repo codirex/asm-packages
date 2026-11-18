@@ -1,0 +1,7 @@
+# Android build tools for the repository, built in a run of their own (Build packages, list:
+# packages/android.txt) and given to "Publish repository" next to the other runs of the architecture.
+# Names are package FOLDERS of termux-packages; dependencies are built automatically.
+#
+# aapt builds the packages aapt, aapt2 and aidl (subpackages of the same folder). Gradle with the
+# Android Gradle Plugin needs aapt2; the plugin's own copy is an x86_64 binary.
+aapt
