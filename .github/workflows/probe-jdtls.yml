@@ -1,0 +1,28 @@
+name: Probe jdtls
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List milestones and checksum the newest
+        run: |
+          set -euo pipefail
+          base=https://download.eclipse.org/jdtls/milestones
+          curl -fsSL "$base/" -o index.html
+          grep -oE 'href="[0-9]+\.[0-9]+\.[0-9]+/"' index.html | sort -V | tail -8
+          ver=$(grep -oE 'href="[0-9]+\.[0-9]+\.[0-9]+/"' index.html | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1)
+          echo "newest: $ver"
+          for v in "$ver" 1.50.0 1.46.1 1.43.0; do
+            echo "--- $v"
+            name=$(curl -fsSL "$base/$v/latest.txt" || true)
+            echo "latest.txt: $name"
+            if [ -n "$name" ]; then
+              curl -fsSL "$base/$v/$name" -o "jdtls-$v.tar.gz" && sha256sum "jdtls-$v.tar.gz" && ls -l "jdtls-$v.tar.gz"
+              tar tzf "jdtls-$v.tar.gz" | head -20
+              tar xzf "jdtls-$v.tar.gz" -O plugins/org.eclipse.jdt.ls.core_*.jar >/dev/null 2>&1 || true
+              tar tzf "jdtls-$v.tar.gz" | grep -c . 
+            fi
+          done
