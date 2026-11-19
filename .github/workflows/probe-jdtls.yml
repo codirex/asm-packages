@@ -7,23 +7,18 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: List milestones and checksum the newest
+      - name: Layout of the 1.63.0 archive
         run: |
-          base=https://download.eclipse.org/jdtls/milestones
-          curl -sSL -w 'HTTP %{http_code}\n' "$base/" -o index.html || true
-          head -c 1500 index.html || true
-          echo
-          vers=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' index.html | sort -uV | tail -10 || true)
-          echo "versions: $vers"
-          for v in $(echo "$vers" | tail -3); do
-            echo "--- $v"
-            name=$(curl -sSL "$base/$v/latest.txt" || true)
-            echo "latest.txt: $name"
-            if [ -n "$name" ]; then
-              curl -sSL "$base/$v/$name" -o "jdtls-$v.tar.gz" || true
-              sha256sum "jdtls-$v.tar.gz" || true
-              ls -l "jdtls-$v.tar.gz" || true
-              tar tzf "jdtls-$v.tar.gz" | head -25 || true
-            fi
-          done
+          base=https://download.eclipse.org/jdtls/milestones/1.63.0
+          f=jdt-language-server-1.63.0-202610191322.tar.gz
+          curl -sSL "$base/$f" -o j.tgz
+          echo "sha256: $(sha256sum j.tgz)"
+          tar tzf j.tgz | grep -vE '^plugins/(.*\.jar)$' | head -40
+          echo "--- launcher and config entries"
+          tar tzf j.tgz | grep -E 'equinox.launcher_|config_' | head
+          mkdir x && tar xzf j.tgz -C x
+          ls x x/config_linux || true
+          cat x/config_linux/config.ini | head -20 || true
+          sed -n 1,60p x/bin/jdtls.py | head -80
+          grep -n 'Xmx\|add-opens\|add-modules\|Declipse\|Dosgi\|Dlog' x/bin/jdtls.py || true
           exit 0
