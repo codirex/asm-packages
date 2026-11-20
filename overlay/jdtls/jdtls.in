@@ -1,0 +1,51 @@
+#!@TERMUX_PREFIX@/bin/sh
+# Starts the Eclipse JDT language server on standard input and output (LSP).
+# Usage: jdtls [workspace-data-directory]
+#   JDTLS_JAVA  the java program to use (default: the JDK 21 of the userland)
+#   JDTLS_XMX   the heap limit (default: 1g)
+PREFIX='@TERMUX_PREFIX@'
+BASE="$PREFIX/opt/jdtls"
+JAVA="${JDTLS_JAVA:-$PREFIX/lib/jvm/java-21-openjdk/bin/java}"
+STATE="${HOME:-$PREFIX}/.cache/jdtls"
+DATA="${1:-$STATE/workspace}"
+
+if [ ! -x "$JAVA" ]; then
+	echo "jdtls: $JAVA not found; install it with: pkg install openjdk-21" >&2
+	exit 1
+fi
+
+LAUNCHER=$(ls "$BASE"/plugins/org.eclipse.equinox.launcher_*.jar 2> /dev/null | head -n 1)
+if [ -z "$LAUNCHER" ]; then
+	echo "jdtls: the server files are missing under $BASE" >&2
+	exit 1
+fi
+
+case "$(uname -m)" in
+	aarch64 | arm64 | armv7l | armv8l | arm) SYSTEM=config_linux_arm ;;
+	*) SYSTEM=config_linux ;;
+esac
+
+# The server writes into its configuration folder, so it gets a copy per version.
+CONFIG="$STATE/config-@VERSION@"
+if [ ! -f "$CONFIG/config.ini" ]; then
+	rm -rf "$CONFIG"
+	mkdir -p "$CONFIG" || exit 1
+	cp -R "$BASE/$SYSTEM/." "$CONFIG/" || exit 1
+fi
+mkdir -p "$DATA" || exit 1
+
+exec "$JAVA" \
+	-Declipse.application=org.eclipse.jdt.ls.core.id1 \
+	-Dosgi.bundles.defaultStartLevel=4 \
+	-Declipse.product=org.eclipse.jdt.ls.core.product \
+	-Dosgi.checkConfiguration=true \
+	-Dosgi.sharedConfiguration.area="$BASE/$SYSTEM" \
+	-Dosgi.sharedConfiguration.area.readOnly=true \
+	-Dosgi.configuration.cascaded=true \
+	-Xms64m -Xmx"${JDTLS_XMX:-1g}" \
+	--add-modules=ALL-SYSTEM \
+	--add-opens java.base/java.util=ALL-UNNAMED \
+	--add-opens java.base/java.lang=ALL-UNNAMED \
+	-jar "$LAUNCHER" \
+	-configuration "$CONFIG" \
+	-data "$DATA"

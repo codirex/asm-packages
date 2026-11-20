@@ -16,3 +16,4 @@ git -C "$DEST" checkout -q --force FETCH_HEAD
 bash "$ROOT/overlay/apply.sh" "$DEST"
 bash "$ROOT/overlay/mirrors.sh" "$DEST"
 bash "$ROOT/overlay/jdk.sh" "$DEST"
+bash "$ROOT/overlay/jdtls.sh" "$DEST"

@@ -1,0 +1,8 @@
+# Packages for the language servers of the IDE. Build them with "Build packages" (list:
+# packages/lsp.txt) in a run of their own and give that run id to "Publish repository" next to the
+# other runs of the same architecture. Names are package FOLDERS of termux-packages.
+#
+# The Java language server (Eclipse JDT LS) needs Java 21 to run, whatever Java the projects use.
+# jdtls is the official archive of the server (nothing is compiled); it depends on openjdk-21.
+openjdk-21
+jdtls
