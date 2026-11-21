@@ -10,17 +10,10 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Milestone folders
-        run: |
-          for base in https://download.eclipse.org/jdtls/milestones https://archive.eclipse.org/jdtls/milestones; do
-            echo "=== $base"
-            curl -sSL -m 60 "$base/" | grep -oE 'href="[^"]*"' | head -n 80 || true
-          done
-
       - name: Highest Java each milestone needs
         run: |
           set -u
-          for v in 1.59.0 1.60.0 1.61.0 1.62.0; do
+          for v in 1.61.0 1.59.0 1.58.0 1.57.0 1.56.0 1.55.0; do
             echo "=== $v"
             found=""
             for base in https://download.eclipse.org/jdtls/milestones https://archive.eclipse.org/jdtls/milestones; do
@@ -37,6 +30,7 @@ jobs:
             for jar in "x-$v"/plugins/*.jar; do
               mf=$(unzip -p "$jar" META-INF/MANIFEST.MF 2> /dev/null | tr -d '\r' | awk '/^ /{sub(/^ /,""); printf "%s",$0; next} {printf "\n%s",$0}')
               need=$(echo "$mf" | grep -oE 'osgi\.ee=JavaSE\)\(version=[0-9.]+|Bundle-RequiredExecutionEnvironment: JavaSE-[0-9.]+' | grep -oE '[0-9.]+$' | sed 's/^1\.//' | sort -n | tail -n 1 || true)
+              if echo "$mf" | grep -q 'org.eclipse.jdt.core.javac' && ! echo "$mf" | grep -q '^Bundle-SymbolicName: org.eclipse.jdt.core.javac'; then echo "  uses javac bundle: $(basename "$jar")"; fi
               [ -n "$need" ] || continue
               major=${need%%.*}
               if [ "$major" -gt 21 ]; then echo "  needs $need: $(basename "$jar")"; fi
