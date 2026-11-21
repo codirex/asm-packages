@@ -2,15 +2,15 @@ TERMUX_PKG_HOMEPAGE=https://github.com/eclipse-jdtls/eclipse.jdt.ls
 TERMUX_PKG_DESCRIPTION="Eclipse JDT language server for Java (LSP)"
 TERMUX_PKG_LICENSE="EPL-2.0"
 TERMUX_PKG_MAINTAINER="@codirex"
-TERMUX_PKG_VERSION="1.63.0"
+TERMUX_PKG_VERSION="1.61.0"
 TERMUX_PKG_REVISION=1
-_TIMESTAMP="202610191322"
+_TIMESTAMP="202609031315"
 TERMUX_PKG_SRCURL="https://download.eclipse.org/jdtls/milestones/${TERMUX_PKG_VERSION}/jdt-language-server-${TERMUX_PKG_VERSION}-${_TIMESTAMP}.tar.gz"
-TERMUX_PKG_SHA256=b1f2abe0b3cccb462cf64fb4a5587c7d09df60cf8be7748b152cbd89d018bdc4
+TERMUX_PKG_SHA256=338e7e73d61836651ba2453919a0d34fa763eb4e7c03342092309bffb8934c64
 # The archive has no top-level folder, so the generic extraction (which strips one) is not used.
 TERMUX_PKG_SKIP_SRC_EXTRACT=true
-# Version 1.63.0 requires JavaSE 25 (osgi.ee) and does not start on an older Java.
-TERMUX_PKG_DEPENDS="openjdk-25"
+# 1.62.0 and later need Java 25 (Eclipse 4.42 platform bundles); 1.61.0 runs on Java 21.
+TERMUX_PKG_DEPENDS="openjdk-21"
 TERMUX_PKG_PLATFORM_INDEPENDENT=true
 
 termux_step_make_install() {
