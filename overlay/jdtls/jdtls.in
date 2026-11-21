@@ -1,16 +1,16 @@
 #!@TERMUX_PREFIX@/bin/sh
 # Starts the Eclipse JDT language server on standard input and output (LSP).
 # Usage: jdtls [workspace-data-directory]
-#   JDTLS_JAVA  the java program to use (default: the JDK 21 of the userland)
+#   JDTLS_JAVA  the java program to use (default: the JDK 25 of the userland)
 #   JDTLS_XMX   the heap limit (default: 1g)
 PREFIX='@TERMUX_PREFIX@'
 BASE="$PREFIX/opt/jdtls"
-JAVA="${JDTLS_JAVA:-$PREFIX/lib/jvm/java-21-openjdk/bin/java}"
+JAVA="${JDTLS_JAVA:-$PREFIX/lib/jvm/java-25-openjdk/bin/java}"
 STATE="${HOME:-$PREFIX}/.cache/jdtls"
 DATA="${1:-$STATE/workspace}"
 
 if [ ! -x "$JAVA" ]; then
-	echo "jdtls: $JAVA not found; install it with: pkg install openjdk-21" >&2
+	echo "jdtls: $JAVA not found; install it with: pkg install openjdk-25" >&2
 	exit 1
 fi
 

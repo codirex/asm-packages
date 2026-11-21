@@ -1,13 +1,14 @@
 #!/bin/bash
 # Changes to the JDK packages. Usage: overlay/jdk.sh <termux-packages-dir>
 #
-# openjdk-17 and openjdk-21 list alsa-plugins as a run time dependency. That pulls in pulseaudio
-# (which needs libsndfile, libwebrtc-audio-processing and more) only for Java sound, which the IDE
-# does not use; the JDK needs alsa-lib to build (a build dependency, which stays), not the plugins.
-# The build of pulseaudio failed here (meson did not find sndfile), so the dependency is removed.
+# openjdk-17, openjdk-21 and openjdk-25 list alsa-plugins as a run time dependency. That pulls in
+# pulseaudio (which needs libsndfile, libwebrtc-audio-processing and more) only for Java sound,
+# which the IDE does not use; the JDK needs alsa-lib to build (a build dependency, which stays), not
+# the plugins. The build of pulseaudio failed here (meson did not find sndfile), so the dependency
+# is removed.
 #
 # gradle lists "openjdk-21 | openjdk-25 | openjdk-17" and the build resolves the first alternative.
-# Gradle 9 runs on JDK 17, so it depends on openjdk-17 alone (the Java language server needs 21 and
+# Gradle 9 runs on JDK 17, so it depends on openjdk-17 alone (the Java language server needs 25 and
 # says so in its own package).
 set -euo pipefail
 
@@ -28,6 +29,7 @@ no_alsa_plugins() {
 
 no_alsa_plugins openjdk-17
 no_alsa_plugins openjdk-21
+no_alsa_plugins openjdk-25
 
 GRADLE="$TARGET/packages/gradle/build.sh"
 [ -f "$GRADLE" ] || { echo "missing $GRADLE" >&2; exit 1; }
