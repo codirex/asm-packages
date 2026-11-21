@@ -10,25 +10,37 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - name: Milestone folders
+        run: |
+          for base in https://download.eclipse.org/jdtls/milestones https://archive.eclipse.org/jdtls/milestones; do
+            echo "=== $base"
+            curl -sSL -m 60 "$base/" | grep -oE 'href="[^"]*"' | head -n 80 || true
+          done
+
       - name: Highest Java each milestone needs
         run: |
           set -u
-          for v in 1.59.0 1.60.0 1.61.0; do
+          for v in 1.59.0 1.60.0 1.61.0 1.62.0; do
             echo "=== $v"
-            name=$(curl -fsSL "https://download.eclipse.org/jdtls/milestones/$v/latest.txt" | tr -d '\r\n')
-            echo "archive: $name"
-            curl -fsSL -o "t-$v.tgz" "https://download.eclipse.org/jdtls/milestones/$v/$name"
+            found=""
+            for base in https://download.eclipse.org/jdtls/milestones https://archive.eclipse.org/jdtls/milestones; do
+              name=$(curl -sSL -m 60 "$base/$v/" | grep -oE 'jdt-language-server-[0-9.]+-[0-9]+\.tar\.gz' | sort -u | tail -n 1 || true)
+              if [ -n "$name" ]; then found="$base/$v/$name"; break; fi
+            done
+            if [ -z "$found" ]; then echo "no archive found for $v"; continue; fi
+            echo "archive: $found"
+            curl -fsSL -m 300 -o "t-$v.tgz" "$found"
             echo "sha256: $(sha256sum "t-$v.tgz" | cut -d' ' -f1)"
             mkdir "x-$v"
             tar xzf "t-$v.tgz" -C "x-$v"
             max=0
             for jar in "x-$v"/plugins/*.jar; do
               mf=$(unzip -p "$jar" META-INF/MANIFEST.MF 2> /dev/null | tr -d '\r' | awk '/^ /{sub(/^ /,""); printf "%s",$0; next} {printf "\n%s",$0}')
-              need=$(echo "$mf" | grep -oE 'osgi\.ee=JavaSE\)\(version=[0-9.]+|Bundle-RequiredExecutionEnvironment: JavaSE-[0-9.]+' | grep -oE '[0-9.]+$' | sed 's/^1\.//' | sort -n | tail -n 1)
+              need=$(echo "$mf" | grep -oE 'osgi\.ee=JavaSE\)\(version=[0-9.]+|Bundle-RequiredExecutionEnvironment: JavaSE-[0-9.]+' | grep -oE '[0-9.]+$' | sed 's/^1\.//' | sort -n | tail -n 1 || true)
               [ -n "$need" ] || continue
               major=${need%%.*}
               if [ "$major" -gt 21 ]; then echo "  needs $need: $(basename "$jar")"; fi
-              [ "$major" -gt "$max" ] && max=$major
+              if [ "$major" -gt "$max" ]; then max=$major; fi
             done
             echo "highest Java needed: $max"
           done
