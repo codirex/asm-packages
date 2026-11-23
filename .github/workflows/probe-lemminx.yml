@@ -1,0 +1,23 @@
+name: Probe LemMinX
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          V=0.31.1
+          curl -fsSL -o lemminx.jar "https://download.eclipse.org/lemminx/releases/$V/org.eclipse.lemminx-uber.jar"
+          ls -l lemminx.jar
+          sha256sum lemminx.jar
+          unzip -p lemminx.jar META-INF/MANIFEST.MF | head -30
+          unzip -l lemminx.jar | grep -c 'class$' || true
+          # Which Java does it need? The class file version of its own main class.
+          unzip -p lemminx.jar org/eclipse/lemminx/XMLServerLauncher.class | head -c 8 | od -An -tu1
+          java -version 2>&1 | head -2
+          echo '{}' | timeout 5 java -jar lemminx.jar || true
