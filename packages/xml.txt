@@ -1,0 +1,7 @@
+# The XML language server of the IDE. Build it with "Build packages" (list: packages/xml.txt) and
+# give that run id to "Publish repository" next to the other runs of the same architecture. Names
+# are package FOLDERS of termux-packages.
+#
+# lemminx is the official uber jar of Eclipse LemMinX (nothing is compiled); it depends on
+# openjdk-17, which extras.txt builds.
+lemminx

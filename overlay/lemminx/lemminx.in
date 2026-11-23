@@ -1,0 +1,18 @@
+#!@TERMUX_PREFIX@/bin/sh
+# Starts the Eclipse LemMinX XML language server on standard input and output (LSP).
+# Usage: lemminx
+#   LEMMINX_JAVA  the java program to use (default: the JDK 17 of the userland)
+#   LEMMINX_XMX   the heap limit (default: 256m)
+PREFIX='@TERMUX_PREFIX@'
+JAVA="${LEMMINX_JAVA:-$PREFIX/lib/jvm/java-17-openjdk/bin/java}"
+
+if [ ! -x "$JAVA" ]; then
+	echo "lemminx: $JAVA not found; install it with: pkg install openjdk-17" >&2
+	exit 1
+fi
+if [ ! -f "$PREFIX/opt/lemminx/lemminx.jar" ]; then
+	echo "lemminx: the server files are missing under $PREFIX/opt/lemminx" >&2
+	exit 1
+fi
+
+exec "$JAVA" -Xms32m -Xmx"${LEMMINX_XMX:-256m}" -jar "$PREFIX/opt/lemminx/lemminx.jar"
