@@ -98,5 +98,5 @@ jobs:
           name: debs-${{ matrix.arch }}
           path: debs-${{ matrix.arch }}.tar
           compression-level: 0
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: warn
